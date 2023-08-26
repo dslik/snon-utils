@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: APSL-2.0
 // ---------------------------------------------------------------------------------
 #include <string.h>
-#include "pico/stdlib.h"
+#include <stdlib.h>
 
 #define	u_int8_t  uint8_t
 #define	u_int32_t uint32_t

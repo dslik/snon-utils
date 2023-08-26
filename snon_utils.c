@@ -15,8 +15,16 @@
 #include <stdlib.h>
 
 // Pico Headers
+#if !defined(__x86_64__)
 #include "pico/unique_id.h"
 #include "hardware/rtc.h"
+#endif
+
+// Local mac target
+#if defined(__x86_64__)
+#include <stdbool.h>
+#include "rtc_fake.h"
+#endif
 
 // Local Headers
 #include "snon_utils.h"
@@ -171,7 +179,7 @@ bool entity_register(char* entity_name, char* entity_class, char* initial_values
         cJSON_AddItemToObject(entity, "eN", name = cJSON_CreateObject());
         cJSON_AddStringToObject(name, "*", entity_name);
 
-        if(entity_class == SNON_CLASS_VALUE)
+        if(strcmp(entity_class, SNON_CLASS_VALUE) == 0)
         {
             rtc_now_to_counter(current_time);
 
@@ -585,7 +593,7 @@ bool rtc_counter_to_iso8601(char* buffer, uint64_t counter)
     struct tm   time;
     int64_t     offset_counter = 0;
     uint64_t    epoch_counter = 0;
-    uint64_t    epoch_counter_secs = 0;
+    time_t      epoch_counter_secs = 0;
 
     // Length of ISO8601 string used here is 28 characters:
     // "YYYY-MM-DDTHH:MM:SS.123456Z"
