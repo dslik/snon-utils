@@ -32,7 +32,7 @@
 #include "cJSON.h"
 
 // Local Constants
-#define SNON_UUID   "C3A4DD12-EFD4-537A-885C-50EC74A2CB12"
+#define SNON_URN            "urn:uuid:C3A4DD12-EFD4-537A-885C-50EC74A2CB12"
 
 // Local Prototypes
 bool rtc_now_to_counter(char* buffer);
@@ -56,7 +56,7 @@ uint64_t rtc_set_epoch = 0;
 
 void snon_initialize(char* entity_name)
 {
-    char    uuid[37];
+    char    eid[SNON_URN_LENGTH];
     char    current_time[28];
     cJSON*  entity = NULL;
     cJSON*  name = NULL;
@@ -68,21 +68,21 @@ void snon_initialize(char* entity_name)
     snon_list = cJSON_CreateArray();
 
     // Create the device entity
-    entity_get_uuid("Device", uuid);
-    cJSON_AddItemToObject(snon_root, uuid, entity = cJSON_CreateObject());
+    snon_name_to_eid("Device", eid);
+    cJSON_AddItemToObject(snon_root, eid, entity = cJSON_CreateObject());
     cJSON_AddStringToObject(entity, "eC", "device");
-    cJSON_AddStringToObject(entity, "eID", uuid);
+    cJSON_AddStringToObject(entity, "eID", eid);
     cJSON_AddItemToObject(entity, "eN", name = cJSON_CreateObject());
     cJSON_AddStringToObject(name, "*", entity_name);
 
     // Add the entity to the master entity list
-    cJSON_AddItemToArray(snon_list, cJSON_CreateString(uuid));
+    cJSON_AddItemToArray(snon_list, cJSON_CreateString(eid));
 
     // Create the entity list entity
-    entity_get_uuid("Entities", uuid);
-    cJSON_AddItemToObject(snon_root, uuid, entity = cJSON_CreateObject());
+    snon_name_to_eid("Entities", eid);
+    cJSON_AddItemToObject(snon_root, eid, entity = cJSON_CreateObject());
     cJSON_AddStringToObject(entity, "eC", "value");
-    cJSON_AddStringToObject(entity, "eID", uuid);
+    cJSON_AddStringToObject(entity, "eID", eid);
     cJSON_AddItemToObject(entity, "eN", name = cJSON_CreateObject());
     cJSON_AddStringToObject(name, "*", "Entities");
     cJSON_AddItemToObject(entity, "v", snon_list);
@@ -91,74 +91,20 @@ void snon_initialize(char* entity_name)
     cJSON_AddItemToArray(array, cJSON_CreateString(current_time));
 
     // Add the entity to the master entity list
-    cJSON_AddItemToArray(snon_list, cJSON_CreateString(uuid));
+    cJSON_AddItemToArray(snon_list, cJSON_CreateString(eid));
 }
 
-bool entity_has_eID(const char* entity_json, char* uuid_buffer)
+
+bool snon_register(char* entity_name, char* entity_class, char* initial_values)
 {
-    cJSON*  entity = NULL;
-    cJSON*  eID = NULL;
-    char*   eID_string = NULL;
-    bool    has_eID = false;
-
-    entity = cJSON_Parse(entity_json);
-
-    if(entity != NULL)
-    {
-        eID = cJSON_GetObjectItemCaseSensitive(entity, "eID");
-
-        if(eID != NULL)
-        {
-            eID_string = cJSON_GetStringValue(eID);
-            strcpy(uuid_buffer, eID_string);
-
-            has_eID = true;
-        }
-
-        cJSON_free(entity);
-    }
-
-    return(has_eID);
-}
-
-bool entity_has_value(const char* entity_json, char* value_buffer)
-{
-    cJSON*  entity = NULL;
-    cJSON*  value_array = NULL;
-    char*   value_array_string = NULL;
-    bool    has_value = false;
-
-    entity = cJSON_Parse(entity_json);
-
-    if(entity != NULL)
-    {
-        value_array = cJSON_GetObjectItemCaseSensitive(entity, "v");
-
-        if(value_array != NULL)
-        {
-            value_array_string = cJSON_PrintUnformatted(value_array);
-            strcpy(value_buffer, value_array_string);
-            cJSON_free(value_array_string);
-
-            has_value = true;
-        }
-
-        cJSON_free(entity);
-    }
-
-    return(has_value);
-}
-
-bool entity_register(char* entity_name, char* entity_class, char* initial_values)
-{
-    char    uuid[37];
+    char    eid[SNON_URN_LENGTH];
     char    current_time[28];
     cJSON*  entity = NULL;
     cJSON*  name = NULL;
     cJSON*  array = NULL;
     bool    register_result = false;
 
-    entity_get_uuid(entity_name, uuid);
+    snon_name_to_eid(entity_name, eid);
 
     if(initial_values != NULL)
     {
@@ -173,9 +119,9 @@ bool entity_register(char* entity_name, char* entity_class, char* initial_values
 
     if(entity != NULL)
     {
-        cJSON_AddItemToObject(snon_root, uuid, entity);
+        cJSON_AddItemToObject(snon_root, eid, entity);
         cJSON_AddStringToObject(entity, "eC", entity_class);
-        cJSON_AddStringToObject(entity, "eID", uuid);
+        cJSON_AddStringToObject(entity, "eID", eid);
         cJSON_AddItemToObject(entity, "eN", name = cJSON_CreateObject());
         cJSON_AddStringToObject(name, "*", entity_name);
 
@@ -194,25 +140,41 @@ bool entity_register(char* entity_name, char* entity_class, char* initial_values
             cJSON_AddItemToArray(array, cJSON_CreateString(current_time));
         }
 
-        cJSON_AddItemToArray(snon_list, cJSON_CreateString(uuid));
+        cJSON_AddItemToArray(snon_list, cJSON_CreateString(eid));
         register_result = true;
     }
 
     return(register_result);
 }
 
-bool entity_add_relationship(char* entity_name, char* rel_type, char* rel_entity_name)
+bool snon_add_relationship(char* entity_ref, char* rel_type, char* rel_entity_name)
 {
-    char        uuid[37];
+    char        eid[SNON_URN_LENGTH];
     cJSON*      entity = NULL;
     cJSON*      rel = NULL;
     cJSON*      array = NULL;
     bool        add_result = false;
 
-    // Find the UUID for the entity
-    entity_get_uuid(entity_name, uuid);
+    // Check if the entity reference is a UUID
+    if(strncmp(entity_ref, "urn:uuid:", 9) == 0)
+    {
+        // Entity reference is a UUID
+        if(strlen(entity_ref) != SNON_URN_LENGTH - 1)
+        {
+            return(false);
+        }
+        else
+        {
+            strncpy(eid, entity_ref, SNON_URN_LENGTH);
+        }
+    }
+    else
+    {
+        // Entity reference is a name, get the UUID
+        snon_name_to_eid(entity_ref, eid);
+    }
 
-    entity = cJSON_GetObjectItemCaseSensitive(snon_root, uuid);
+    entity = cJSON_GetObjectItemCaseSensitive(snon_root, eid);
     if(entity != NULL)
     {
         rel = cJSON_GetObjectItemCaseSensitive(entity, "eR");
@@ -229,8 +191,8 @@ bool entity_add_relationship(char* entity_name, char* rel_type, char* rel_entity
             cJSON_AddItemToObject(rel, rel_type, array = cJSON_CreateArray());
         }
 
-        entity_get_uuid(rel_entity_name, uuid);
-        cJSON_AddItemToArray(array, cJSON_CreateString(uuid));
+        snon_name_to_eid(rel_entity_name, eid);
+        cJSON_AddItemToArray(array, cJSON_CreateString(eid));
 
         add_result = true;
     }
@@ -239,19 +201,10 @@ bool entity_add_relationship(char* entity_name, char* rel_type, char* rel_entity
 }
 
 
-void entity_name_update(char* entity_name, char* updated_values)
+bool snon_set_values(char* entity_ref, char* updated_values)
 {
-    char        uuid[37];
-
-    // Find the UUID for the entity
-    entity_get_uuid(entity_name, uuid);
-
-    return(entity_uuid_update(uuid, updated_values));
-}
-
-void entity_uuid_update(char* entity_uuid, char* updated_values)
-{
-    char        uuid[37];
+    char        eid[SNON_URN_LENGTH];
+    char        eid2[SNON_URN_LENGTH];
     char        current_time[28];
     cJSON*      entity = NULL;
     cJSON*      new_value = NULL;
@@ -261,10 +214,30 @@ void entity_uuid_update(char* entity_uuid, char* updated_values)
     cJSON*      value_time_array = NULL;
     cJSON*      array = NULL;
     bool        is_time_entity = false;
+    bool        set_result = false;
+
+    // Check if the entity reference is a UUID
+    if(strncmp(entity_ref, "urn:uuid:", 9) == 0)
+    {
+        // Entity reference is a UUID
+        if(strlen(entity_ref) != SNON_URN_LENGTH - 1)
+        {
+            return(false);
+        }
+        else
+        {
+            strncpy(eid, entity_ref, SNON_URN_LENGTH);
+        }
+    }
+    else
+    {
+        // Entity reference is a name, get the UUID
+        snon_name_to_eid(entity_ref, eid);
+    }
 
     // Check if it is the time entity
-    entity_get_uuid("Device Time", uuid);
-    if(strcmp(entity_uuid, uuid) == 0)
+    snon_name_to_eid("Device Time", eid2);
+    if(strcmp(eid, eid2) == 0)
     {
         is_time_entity = true;
     }
@@ -275,7 +248,7 @@ void entity_uuid_update(char* entity_uuid, char* updated_values)
     if(new_value != NULL)
     {
         // Find the entity by UUID
-        entity = cJSON_GetObjectItemCaseSensitive(snon_root, entity_uuid);
+        entity = cJSON_GetObjectItemCaseSensitive(snon_root, eid);
         if(entity != NULL)
         {
             rtc_now_to_counter(current_time);
@@ -312,6 +285,8 @@ void entity_uuid_update(char* entity_uuid, char* updated_values)
 
             cJSON_AddItemToObject(entity, "vT", array = cJSON_CreateArray());
             cJSON_AddItemToArray(array, cJSON_CreateString(current_time));
+
+            set_result = true;
         }
         else
         {
@@ -322,21 +297,14 @@ void entity_uuid_update(char* entity_uuid, char* updated_values)
     {
         printf("\nError: Invalid value %s", updated_values);
     }
+
+    return(set_result);
 }
 
-char* entity_name_to_json(char* entity_name)
+char* snon_get_json(char* entity_ref)
 {
-    char        uuid[37];
-
-    // Find the UUID for the entity
-    entity_get_uuid(entity_name, uuid);
-
-    return(entity_uuid_to_json(uuid));
-}
-
-char* entity_uuid_to_json(char* entity_uuid)
-{
-    char        uuid[37];
+    char        eid[SNON_URN_LENGTH];
+    char        eid2[SNON_URN_LENGTH];
     char        new_time[28];
     char*       entity_json = NULL;
     cJSON*      entity = NULL;
@@ -348,21 +316,51 @@ char* entity_uuid_to_json(char* entity_uuid)
     bool        is_time_entity = false;
     bool        is_uptime_entity = false;
 
+    // Check if the entity reference is a UUID
+    if(strncmp(entity_ref, "urn:uuid:", 9) == 0)
+    {
+        // Entity reference is a UUID
+        if(strlen(entity_ref) != SNON_URN_LENGTH - 1)
+        {
+            return(NULL);
+        }
+        else
+        {
+            strncpy(eid, entity_ref, SNON_URN_LENGTH);
+        }
+    }
+    else
+    {
+        // Entity reference is a name, get the UUID
+        snon_name_to_eid(entity_ref, eid);
+    }
+
+    entity = cJSON_GetObjectItemCaseSensitive(snon_root, eid);
+    if(entity != NULL)
+    {
+        entity_json = cJSON_PrintUnformatted(entity);
+    }
+
+    return(entity_json);
+
+
+
+
     // Check if it is the time entity
-    entity_get_uuid("Device Time", uuid);
-    if(strcmp(entity_uuid, uuid) == 0)
+    snon_name_to_eid("Device Time", eid2);
+    if(strcmp(eid, eid2) == 0)
     {
         is_time_entity = true;
     }
 
-    entity_get_uuid("Device Uptime", uuid);
-    if(strcmp(entity_uuid, uuid) == 0)
+    snon_name_to_eid("Device Uptime", eid2);
+    if(strcmp(eid, eid2) == 0)
     {
         is_uptime_entity = true;
     }
 
     // Find the entity by UUID
-    entity = cJSON_GetObjectItemCaseSensitive(snon_root, entity_uuid);
+    entity = cJSON_GetObjectItemCaseSensitive(snon_root, eid);
     if(entity != NULL)
     {
         time_array = cJSON_GetObjectItemCaseSensitive(entity, "vT");
@@ -417,24 +415,34 @@ char* entity_uuid_to_json(char* entity_uuid)
     return(entity_json);
 }
 
-char* entity_name_to_values(char* entity_name)
+char* snon_get_values(char* entity_ref)
 {
-    char        uuid[37];
-
-    // Find the UUID for the entity
-    entity_get_uuid(entity_name, uuid);
-
-    return(entity_uuid_to_values(uuid));
-}
-
-char* entity_uuid_to_values(char* entity_uuid)
-{
+    char        eid[SNON_URN_LENGTH];
     char*       entity_json = NULL;
     cJSON*      entity = NULL;
     cJSON*      value_array = NULL;
 
+    // Check if the entity reference is a UUID
+    if(strncmp(entity_ref, "urn:uuid:", 9) == 0)
+    {
+        // Entity reference is a UUID
+        if(strlen(entity_ref) != SNON_URN_LENGTH - 1)
+        {
+            return(NULL);
+        }
+        else
+        {
+            strncpy(eid, entity_ref, SNON_URN_LENGTH);
+        }
+    }
+    else
+    {
+        // Entity reference is a name, get the UUID
+        snon_name_to_eid(entity_ref, eid);
+    }
+
     // Find the entity by UUID
-    entity = cJSON_GetObjectItemCaseSensitive(snon_root, entity_uuid);
+    entity = cJSON_GetObjectItemCaseSensitive(snon_root, eid);
     if(entity != NULL)
     {
         value_array = cJSON_GetObjectItemCaseSensitive(entity, "v");
@@ -442,55 +450,173 @@ char* entity_uuid_to_values(char* entity_uuid)
         if(value_array != NULL)
         {
             entity_json = cJSON_PrintUnformatted(value_array);
-
-            string_char_sub(entity_json, ' ', '\n');
         }
     }
 
     return(entity_json);
 }
 
-void entity_get_uuid(char* entity_name, char* uuid_buffer)
+char* snon_get_name(char* entity_ref)
+{
+    char        eid[SNON_URN_LENGTH];
+    char*       entity_name = NULL;
+    cJSON*      entity = NULL;
+    cJSON*      value_name_container = NULL;
+    cJSON*      value_name_object = NULL;
+
+    // Check if the entity reference is a UUID
+    if(strncmp(entity_ref, "urn:uuid:", 9) == 0)
+    {
+        // Entity reference is a UUID
+        if(strlen(entity_ref) != SNON_URN_LENGTH - 1)
+        {
+            return(NULL);
+        }
+        else
+        {
+            strncpy(eid, entity_ref, SNON_URN_LENGTH);
+        }
+    }
+    else
+    {
+        // Entity reference is a name, get the UUID
+        snon_name_to_eid(entity_ref, eid);
+    }
+
+    // Find the entity by UUID
+    entity = cJSON_GetObjectItemCaseSensitive(snon_root, eid);
+    if(entity != NULL)
+    {
+        value_name_container = cJSON_GetObjectItemCaseSensitive(entity, "eN");
+
+        if(value_name_container != NULL)
+        {
+            value_name_object = cJSON_GetObjectItemCaseSensitive(value_name_container, "*");
+
+            if(value_name_object != NULL)
+            {
+                entity_name = cJSON_GetStringValue(value_name_object);
+            }
+        }
+    }
+
+    return(entity_name);
+}
+
+void snon_name_to_eid(const char* entity_name, char* eid_buffer)
 {
     uint64_t    device_id = 0;
     SHA1_CTX    sha1_context;
     uint8_t     sha1_result[20];
     uint8_t     counter = 0;
-    uint8_t     offset = 0;
+    uint8_t     offset = 9;
 
     device_get_id(&device_id);
 
     SHA1Init(&sha1_context);
-    SHA1Update(&sha1_context, SNON_UUID, strlen(SNON_UUID));
+    SHA1Update(&sha1_context, SNON_URN, strlen(SNON_URN));
     SHA1Update(&sha1_context, &device_id, 8);
     SHA1Update(&sha1_context, entity_name, strlen(entity_name));
     SHA1Final(&sha1_result, &sha1_context);
 
-    uuid_buffer[36] = 0;
+    eid_buffer[0] = 'u';
+    eid_buffer[1] = 'r';
+    eid_buffer[2] = 'n';
+    eid_buffer[3] = ':';
+    eid_buffer[4] = 'u';
+    eid_buffer[5] = 'u';
+    eid_buffer[6] = 'i';
+    eid_buffer[7] = 'd';
+    eid_buffer[8] = ':';
+    eid_buffer[SNON_URN_LENGTH - 1] = 0;
 
     while(counter < 16)
     {
         if(counter == 4 || counter == 6 || counter == 8 || counter == 10)
         {
-            uuid_buffer[(counter * 2) + offset] = '-';
+            eid_buffer[(counter * 2) + offset] = '-';
             offset = offset + 1;
         }
 
-        uuid_buffer[(counter * 2) + offset] = nibble_to_hexchar(sha1_result[counter] >> 4);
-        uuid_buffer[(counter * 2) + 1 + offset] = nibble_to_hexchar(sha1_result[counter] & 0x0F);
+        eid_buffer[(counter * 2) + offset] = nibble_to_hexchar(sha1_result[counter] >> 4);
+        eid_buffer[(counter * 2) + 1 + offset] = nibble_to_hexchar(sha1_result[counter] & 0x0F);
 
         if(counter == 6)
         {
-            uuid_buffer[(counter * 2) + offset] = '5';
+            eid_buffer[(counter * 2) + offset] = '5';
         }
 
         if(counter == 8)
         {
-            uuid_buffer[(counter * 2) + offset] = nibble_to_hexchar(((sha1_result[counter] >> 4) & 0b1011) | 0b1000);
+            eid_buffer[(counter * 2) + offset] = nibble_to_hexchar(((sha1_result[counter] >> 4) & 0b1011) | 0b1000);
         }
 
         counter = counter + 1;
     }
+}
+
+char* snon_get_dump(void)
+{
+    char*       entity_json = NULL;
+
+    entity_json = cJSON_Print(snon_root);
+
+    return(entity_json);
+}
+
+bool json_has_eid(const char* entity_json, char* uuid_buffer)
+{
+    cJSON*  entity = NULL;
+    cJSON*  eID = NULL;
+    char*   eID_string = NULL;
+    bool    has_eID = false;
+
+    entity = cJSON_Parse(entity_json);
+
+    if(entity != NULL)
+    {
+        eID = cJSON_GetObjectItemCaseSensitive(entity, "eID");
+
+        if(eID != NULL)
+        {
+            eID_string = cJSON_GetStringValue(eID);
+            strcpy(uuid_buffer, eID_string);
+
+            has_eID = true;
+        }
+
+        cJSON_free(entity);
+    }
+
+    return(has_eID);
+}
+
+bool json_has_value(const char* entity_json, char* value_buffer)
+{
+    cJSON*  entity = NULL;
+    cJSON*  value_array = NULL;
+    char*   value_array_string = NULL;
+    bool    has_value = false;
+
+    entity = cJSON_Parse(entity_json);
+
+    if(entity != NULL)
+    {
+        value_array = cJSON_GetObjectItemCaseSensitive(entity, "v");
+
+        if(value_array != NULL)
+        {
+            value_array_string = cJSON_PrintUnformatted(value_array);
+            strcpy(value_buffer, value_array_string);
+            cJSON_free(value_array_string);
+
+            has_value = true;
+        }
+
+        cJSON_free(entity);
+    }
+
+    return(has_value);
 }
 
 // =================================================================================

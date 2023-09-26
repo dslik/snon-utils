@@ -12,22 +12,24 @@
 // Utility routines
 void snon_initialize(char* device_name);
 
-bool entity_register(char* entity_name, char* entity_class, char* initial_values);
-bool entity_has_eID(const char* entity_json, char* uuid_buffer);
-bool entity_has_value(const char* entity_json, char* value_buffer);
-bool entity_add_relationship(char* entity_name, char* rel_type, char* rel_entity_name);
-void entity_name_update(char* entity_name, char* updated_values);
-void entity_uuid_update(char* entity_uuid, char* updated_values);
-char* entity_name_to_json(char* entity_name);
-char* entity_uuid_to_json(char* entity_uuid);
-char* entity_name_to_values(char* entity_name);
-char* entity_uuid_to_values(char* entity_uuid);
-void entity_get_uuid(char* entity_name, char* uuid_buffer);
+bool snon_register(char* entity_name, char* entity_class, char* initial_values);
+bool snon_add_relationship(char* entity_ref, char* rel_type, char* rel_entity_name);
+bool snon_set_values(char* entity_ref, char* updated_values);
+char* snon_get_json(char* entity_ref);
+char* snon_get_name(char* entity_ref);
+char* snon_get_values(char* entity_ref);
+void snon_name_to_eid(const char* entity_name, char* eid_buffer);
+
+char* snon_get_dump(void);
+
+bool json_has_eid(const char* entity_json, char* uuid_buffer);
+bool json_has_value(const char* entity_json, char* value_buffer);
 
 bool rtc_set_time(char* time_iso8601);
 bool rtc_counter_to_iso8601(char* buffer, uint64_t counter);
 
 // Defines
+#define SNON_URN_LENGTH     	46
 
 // SNON Classes
 #define SNON_CLASS_DEVICE		"device"
