@@ -335,17 +335,6 @@ char* snon_get_json(char* entity_ref)
         snon_name_to_eid(entity_ref, eid);
     }
 
-    entity = cJSON_GetObjectItemCaseSensitive(snon_root, eid);
-    if(entity != NULL)
-    {
-        entity_json = cJSON_PrintUnformatted(entity);
-    }
-
-    return(entity_json);
-
-
-
-
     // Check if it is the time entity
     snon_name_to_eid("Device Time", eid2);
     if(strcmp(eid, eid2) == 0)
@@ -455,6 +444,65 @@ char* snon_get_values(char* entity_ref)
 
     return(entity_json);
 }
+
+char* snon_get_value(char* entity_ref)
+{
+    char        eid[SNON_URN_LENGTH];
+    char*       entity_value = NULL;
+    cJSON*      entity = NULL;
+    cJSON*      value_array = NULL;
+    cJSON*      value_array_item = NULL;
+
+    // Check if the entity reference is a UUID
+    if(strncmp(entity_ref, "urn:uuid:", 9) == 0)
+    {
+        // Entity reference is a UUID
+        if(strlen(entity_ref) != SNON_URN_LENGTH - 1)
+        {
+            return(NULL);
+        }
+        else
+        {
+            strncpy(eid, entity_ref, SNON_URN_LENGTH);
+        }
+    }
+    else
+    {
+        // Entity reference is a name, get the UUID
+        snon_name_to_eid(entity_ref, eid);
+    }
+
+    // Find the entity by UUID
+    entity = cJSON_GetObjectItemCaseSensitive(snon_root, eid);
+    if(entity != NULL)
+    {
+        value_array = cJSON_GetObjectItemCaseSensitive(entity, "v");
+        if(value_array != NULL)
+        {
+            value_array_item = cJSON_GetArrayItem(value_array, 0);
+            if(value_array_item != NULL)
+            {
+                entity_value = cJSON_GetStringValue(value_array_item);
+            }
+        }
+    }
+
+    return(entity_value);
+}
+
+double snon_get_value_as_double(char* entity_ref)
+{
+    char*   entity_value = snon_get_value(entity_ref);
+    double  entity_double = 0;
+
+    if(entity_value != NULL)
+    {
+        entity_double = atof(entity_value);
+    }
+
+    return(entity_double);
+}
+
 
 char* snon_get_name(char* entity_ref)
 {
