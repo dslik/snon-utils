@@ -13,8 +13,10 @@
 void snon_initialize(char* device_name);
 
 bool snon_register(char* entity_name, char* entity_class, char* initial_values);
+bool snon_register_81346(char* entity_name, char* entity_class, char* initial_value);
 bool snon_add_relationship(char* entity_ref, char* rel_type, char* rel_entity_name);
 bool snon_set_values(char* entity_ref, char* updated_values);
+bool snon_set_value(char* entity_ref, char* updated_value);
 char* snon_get_json(char* entity_ref);
 char* snon_get_name(char* entity_ref);
 char* snon_get_values(char* entity_ref);
