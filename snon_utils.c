@@ -571,6 +571,39 @@ double snon_get_value_as_double(char* entity_ref)
     return(entity_double);
 }
 
+char* snon_get_time(char* entity_ref)
+{
+    char        eid[SNON_URN_LENGTH];
+    char*       entity_time = NULL;
+    cJSON*      entity = NULL;
+    cJSON*      value_array = NULL;
+    cJSON*      value_array_item = NULL;
+
+    if(snon_resolve(entity_ref, eid) == true)
+    {
+        // Find the entity by UUID
+        entity = cJSON_GetObjectItemCaseSensitive(snon_root, eid);
+        if(entity != NULL)
+        {
+            value_array = cJSON_GetObjectItemCaseSensitive(entity, "vT");
+            if(value_array != NULL)
+            {
+                value_array_item = cJSON_GetArrayItem(value_array, 0);
+                if(value_array_item != NULL)
+                {
+                    entity_time = cJSON_GetStringValue(value_array_item);
+                }
+            }
+        }
+    }
+    else
+    {
+        printf("\nError: Unable to look up entity %s\n", entity_ref);
+    }
+
+    return(entity_time);
+}
+
 
 char* snon_get_name(char* entity_ref)
 {

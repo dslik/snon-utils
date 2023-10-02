@@ -22,6 +22,7 @@ char* snon_get_name(char* entity_ref);
 char* snon_get_values(char* entity_ref);
 char* snon_get_value(char* entity_ref);
 double snon_get_value_as_double(char* entity_ref);
+char* snon_get_time(char* entity_ref);
 void snon_name_to_eid(const char* entity_name, char* eid_buffer);
 
 char* snon_get_dump(void);
